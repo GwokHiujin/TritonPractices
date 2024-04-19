@@ -74,7 +74,7 @@ def benchmark(num_batches, size, backend):
 
 def main():
     validate()
-    benchmark.run(show_plots=True, print_data=True)
+    benchmark.run(show_plots=True, print_data=True, save_path='./benchmark-results/argmax')
 
 
 if __name__ == "__main__":

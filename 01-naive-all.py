@@ -21,10 +21,10 @@ def all_kernel(input_ptr,
 def _all(x: torch.Tensor):
     size = x.numel()
     BLOCK_SIZE = 1024
+    # BLOCK_SIZE = triton.next_power_of_2(size)
     o_elements = size // BLOCK_SIZE
     output = torch.empty(o_elements, device='cuda')
     assert x.is_cuda and output.is_cuda
-    # BLOCK_SIZE = triton.next_power_of_2(size)
     grid = lambda meta: (triton.cdiv(size, meta['BLOCK_SIZE']), )
     all_kernel[grid](x, output, size, BLOCK_SIZE=BLOCK_SIZE) # type: ignore
     return output.min() != 0
@@ -41,4 +41,4 @@ output_triton = _all(x)
 print(f'Origin Tensor: {x}')
 print(f'Torch output: {output_torch}')
 print(f'Triton output: {output_triton}')
-print(f"The output of torch and triton is {'✅SAME' if output_torch == output_triton else '🚨DIFF'}")
+print(f"The output of torch and triton is {'✅SAME' if torch.allclose(output_torch, output_triton) else '🚨DIFF'}")
