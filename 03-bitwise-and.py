@@ -1,13 +1,22 @@
 import triton
 import triton.language as tl
+import triton.testing as testing
 import torch
 
+
+@triton.autotune(
+    configs=[
+        triton.Config(kwargs={"BLOCK_SIZE": m})
+        for m in [32, 64, 128, 256, 512]
+    ],
+    key=['n_elements']
+)
 @triton.jit
 def bitwise_and_kernel(x_ptr, 
                y_ptr, 
                output_ptr, 
                n_elements, 
-               BLOCK_SIZE: tl.constexpr,):
+               BLOCK_SIZE: tl.constexpr):
     pid = tl.program_id(axis=0)     # 1D launch grid
     offsets = tl.arange(0, BLOCK_SIZE) + pid * BLOCK_SIZE   # Its size is equal to BLOCK_SIZE(a "block" of pointer)
 
@@ -24,8 +33,34 @@ def bitwise_and(x: torch.Tensor, y: torch.Tensor):
     assert x.is_cuda and y.is_cuda and output.is_cuda
     n_elements = x.numel()
     grid = lambda meta: (triton.cdiv(n_elements, meta['BLOCK_SIZE']), )
-    bitwise_and_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=1024)
+    bitwise_and_kernel[grid](x, y, output, n_elements)
     return output
+
+
+@testing.perf_report(
+    [
+        testing.Benchmark(
+            x_names=["size_x"],
+            x_vals=[128 * i for i in range(1, 16, 1)],
+            x_log=False,
+            line_arg="backend",
+            line_vals=["triton", "torch"],
+            line_names=["Triton", "Torch"],
+            ylabel="milliseconds",
+            plot_name="03-bitwise-and-performance",
+            args={"num_batches": 8},
+        ),
+    ]
+)
+def benchmark(num_batches, size_x, backend):
+    input_size = (size_x, size_x // 4)
+    input_x = torch.randint(0, 999, input_size, device='cuda')
+    input_y = torch.randint(0, 999, input_size, device='cuda')
+
+    if backend == "triton":
+        return testing.do_bench(lambda: bitwise_and(input_x, input_y))
+    else:
+        return testing.do_bench(lambda: torch.bitwise_and(input_x, input_y))
 
 
 torch.manual_seed(0)
@@ -38,5 +73,7 @@ print(f'Origin Tensor x: {x}')
 print(f'Origin Tensor y: {y}')
 print(f'Torch output: {output_torch}')
 print(f'Triton output: {output_triton}')
-print(f'The maximum difference between torch and triton is '
-      f'{torch.max(torch.abs(output_torch - output_triton))}')
+print(f"The output of torch and triton is {'✅SAME' if torch.allclose(output_torch, output_triton) else '🚨DIFF'}")
+print(f'BENCHMARKING')
+benchmark.run(show_plots=True, print_data=True, save_path='./benchmark-results/')
+print(f'Successfully run the benchmark')

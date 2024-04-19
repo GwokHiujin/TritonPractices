@@ -43,22 +43,17 @@ def argmax(input, dim):
     return output
 
 
-def validate():
-    input = torch.rand(2, 4096, device="cuda")
-    assert torch.allclose(argmax(input, 1), torch.argmax(input, 1))
-
-
 @testing.perf_report(
     [
         testing.Benchmark(
             x_names=["size"],
             x_vals=[256 * i for i in range(1, 11, 1)],
-            x_log=True,
+            x_log=False,
             line_arg="backend",
             line_vals=["triton", "torch"],
             line_names=["Triton", "Torch"],
             ylabel="milliseconds",
-            plot_name="argmax-performance",
+            plot_name="04-argmax-performance",
             args={"num_batches": 8},
         ),
     ]
@@ -72,10 +67,13 @@ def benchmark(num_batches, size, backend):
         return testing.do_bench(lambda: torch.argmax(input, 1))
 
 
-def main():
-    validate()
-    benchmark.run(show_plots=True, print_data=True, save_path='./benchmark-results/argmax')
-
-
-if __name__ == "__main__":
-    main()
+x = torch.rand(2, 4096, device="cuda")
+output_torch = torch.argmax(x, 1)
+output_triton = argmax(x, 1)
+print(f'Origin Tensor: {x}')
+print(f'Torch output: {output_torch}')
+print(f'Triton output: {output_triton}')
+print(f"The output of torch and triton is {'✅SAME' if torch.allclose(output_torch, output_triton) else '🚨DIFF'}")
+print(f'BENCHMARKING')
+benchmark.run(show_plots=True, print_data=True, save_path='./benchmark-results/')
+print(f'Successfully run the benchmark')
