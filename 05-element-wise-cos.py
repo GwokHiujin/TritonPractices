@@ -63,6 +63,7 @@ def benchmark(M, N, backend):
         return testing.do_bench(lambda: torch.cos(input))
 
 
+# TEST CODE
 torch.manual_seed(0)
 x = torch.rand((2, 4), device='cuda') + base
 output_torch = torch.cos(x)
