@@ -1,7 +1,6 @@
 import triton
 import triton.language as tl
 import triton.testing as testing
-import random
 import torch
 
 
@@ -40,7 +39,7 @@ def all_kernel(input_ptr,
     )
     input = tl.load(input_block_ptr, boundary_check=(0, 1))
     output = tl.min(input, axis=(0 if dim == 0 else 1))
-    tl.store(output_block_ptr, output.to(tl.float32))
+    tl.store(output_block_ptr, output.to(tl.int32))
 
 
 def _all(x: torch.Tensor, dim):
@@ -55,7 +54,7 @@ def _all(x: torch.Tensor, dim):
         raise RuntimeError("ERROR: illegal dim(should be 0 or 1)")
     stride_x = x.stride(0)
     stride_y = x.stride(1)
-    output = torch.empty(N if dim==0 else M, device='cuda',dtype=torch.float32)
+    output = torch.empty(N if dim==0 else M, device='cuda',dtype=torch.int32)
     assert x.is_cuda and output.is_cuda
 
     def grid(meta):

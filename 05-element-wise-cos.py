@@ -4,6 +4,9 @@ import triton.testing as testing
 import torch
 
 
+base = 5
+
+
 @triton.autotune(
     configs=[
         triton.Config(kwargs={"BLOCK_SIZE": m})
@@ -12,8 +15,7 @@ import torch
     key=['n_elements']
 )
 @triton.jit
-def bitwise_and_kernel(x_ptr, 
-               y_ptr, 
+def cos_kernel(input_ptr, 
                output_ptr, 
                n_elements, 
                BLOCK_SIZE: tl.constexpr):
@@ -21,19 +23,18 @@ def bitwise_and_kernel(x_ptr,
     offsets = tl.arange(0, BLOCK_SIZE) + pid * BLOCK_SIZE   # Its size is equal to BLOCK_SIZE(a "block" of pointer)
 
     mask = offsets < n_elements
-    x = tl.load(x_ptr + offsets, mask=mask)     # Should be a 1D "block"
-    y = tl.load(y_ptr + offsets, mask=mask)     # Should be a 1D "block"
-    output = x & y
+    input = tl.load(input_ptr + offsets, mask=mask)     # Should be a 1D "block"
+    output = tl.cos(input)
     
     tl.store(output_ptr + offsets, value=output, mask=mask)
 
 
-def bitwise_and(x: torch.Tensor, y: torch.Tensor):
+def _cos(x: torch.Tensor):
     output = torch.empty_like(x)
-    assert x.is_cuda and y.is_cuda and output.is_cuda
+    assert x.is_cuda and output.is_cuda
     n_elements = x.numel()
     grid = lambda meta: (triton.cdiv(n_elements, meta['BLOCK_SIZE']), )
-    bitwise_and_kernel[grid](x, y, output, n_elements)
+    cos_kernel[grid](x, output, n_elements)
     return output
 
 
@@ -47,29 +48,26 @@ def bitwise_and(x: torch.Tensor, y: torch.Tensor):
             line_vals=["triton", "torch"],
             line_names=["Triton", "Torch"],
             ylabel="milliseconds",
-            plot_name="03-bitwise-and-performance",
+            plot_name="05-cos-performance",
             args={"M": 8},
         ),
     ]
 )
 def benchmark(M, N, backend):
     input_size = (M, N)
-    input_x = torch.randint(0, 999, input_size, device='cuda')
-    input_y = torch.randint(0, 999, input_size, device='cuda')
+    input = torch.rand(input_size, device='cuda') + base
 
     if backend == "triton":
-        return testing.do_bench(lambda: bitwise_and(input_x, input_y))
+        return testing.do_bench(lambda: _cos(input))
     else:
-        return testing.do_bench(lambda: torch.bitwise_and(input_x, input_y))
+        return testing.do_bench(lambda: torch.cos(input))
 
 
 torch.manual_seed(0)
-x = torch.randint(0, 999, (2, 4), device='cuda')
-y = torch.randint(0, 999, (2, 4), device='cuda')
-output_torch = torch.bitwise_and(x, y)
-output_triton = bitwise_and(x, y)
+x = torch.rand((2, 4), device='cuda') + base
+output_torch = torch.cos(x)
+output_triton = _cos(x)
 print(f'Origin Tensor x: {x}')
-print(f'Origin Tensor y: {y}')
 print(f'Torch output: {output_torch}')
 print(f'Triton output: {output_triton}')
 print(f"The output of torch and triton is {'✅SAME' if torch.allclose(output_torch, output_triton) else '🚨DIFF'}")

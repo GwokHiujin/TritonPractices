@@ -23,22 +23,22 @@ def all_kernel(input_ptr,
 
 
 def _all(x: torch.Tensor):
-    size = x.numel()
+    N = x.numel()
     BLOCK_SIZE = 2048
-    # BLOCK_SIZE = triton.next_power_of_2(size)
-    o_elements = size // BLOCK_SIZE
+    # BLOCK_SIZE = triton.next_power_of_2(N)
+    o_elements = N // BLOCK_SIZE
     output = torch.empty(o_elements, device='cuda')
     
     assert x.is_cuda and output.is_cuda
-    grid = lambda meta: (triton.cdiv(size, meta['BLOCK_SIZE']), )
-    all_kernel[grid](x, output, size, BLOCK_SIZE=BLOCK_SIZE) # type: ignore
+    grid = lambda meta: (triton.cdiv(N, meta['BLOCK_SIZE']), )
+    all_kernel[grid](x, output, N, BLOCK_SIZE=BLOCK_SIZE) # type: ignore
     return output.min() != 0
     
 
 @testing.perf_report(
     [
         testing.Benchmark(
-            x_names=["size"],
+            x_names=["N"],
             x_vals=[1024 * i for i in range(1, 16, 1)],
             x_log=False,
             line_arg="backend",
@@ -46,12 +46,12 @@ def _all(x: torch.Tensor):
             line_names=["Triton", "Torch"],
             ylabel="milliseconds",
             plot_name="01-naive-all-performance",
-            args={"num_batches": 8},
+            args={"M": 8},
         ),
     ]
 )
-def benchmark(num_batches, size, backend):
-    input = torch.rand(num_batches, size, device="cuda") < threshlod
+def benchmark(M, N, backend):
+    input = torch.rand(M, N, device="cuda") < threshlod
 
     if backend == "triton":
         return testing.do_bench(lambda: _all(input))
@@ -61,8 +61,8 @@ def benchmark(num_batches, size, backend):
 
 # TEST CODE
 torch.manual_seed(0)
-size = 98432
-x = torch.rand(size, device='cuda') < threshlod
+N = 98432
+x = torch.rand(N, device='cuda') < threshlod
 output_torch = torch.all(x)
 output_triton = _all(x)
 print(f'Origin Tensor: {x}')
