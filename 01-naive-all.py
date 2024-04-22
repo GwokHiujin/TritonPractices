@@ -4,6 +4,9 @@ import triton.testing as testing
 import torch
 
 
+threshlod = 0.8
+
+
 # Tests if all elements in input evaluate to True.
 # naive-all only support 1-dimension tensor(i.e. The parameter 'dim' is unsupported)
 @triton.jit
@@ -25,6 +28,7 @@ def _all(x: torch.Tensor):
     # BLOCK_SIZE = triton.next_power_of_2(size)
     o_elements = size // BLOCK_SIZE
     output = torch.empty(o_elements, device='cuda')
+    
     assert x.is_cuda and output.is_cuda
     grid = lambda meta: (triton.cdiv(size, meta['BLOCK_SIZE']), )
     all_kernel[grid](x, output, size, BLOCK_SIZE=BLOCK_SIZE) # type: ignore
@@ -47,7 +51,7 @@ def _all(x: torch.Tensor):
     ]
 )
 def benchmark(num_batches, size, backend):
-    input = torch.rand(num_batches, size, device="cuda") < 0.5
+    input = torch.rand(num_batches, size, device="cuda") < threshlod
 
     if backend == "triton":
         return testing.do_bench(lambda: _all(input))
@@ -57,10 +61,8 @@ def benchmark(num_batches, size, backend):
 
 # TEST CODE
 torch.manual_seed(0)
-threshlod = 0.5
 size = 98432
 x = torch.rand(size, device='cuda') < threshlod
-# x = torch.ones(size, dtype=torch.bool, device='cuda') # All True test case 
 output_torch = torch.all(x)
 output_triton = _all(x)
 print(f'Origin Tensor: {x}')

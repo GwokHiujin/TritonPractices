@@ -9,21 +9,26 @@ def argmax_kernel(output_ptr, input_ptr, num_batches, size, block_size: tl.const
     batch = tl.program_id(0)
 
     output_block_ptr = tl.make_block_ptr(
-        output_ptr, shape=(num_batches,), strides=(1,), offsets=(batch,), block_shape=(1,), order=(0,)
+        base=output_ptr, 
+        shape=(num_batches,), 
+        strides=(1,), 
+        offsets=(batch,), 
+        block_shape=(1,), 
+        order=(0,)
     )
     input_block_ptr = tl.make_block_ptr(
-        input_ptr,
+        base=input_ptr,
         shape=(num_batches, size),
         strides=(size, 1),
         offsets=(batch, 0),
         block_shape=(1, block_size),
-        order=(1, 0),
+        order=(1, 0)
     )
 
     input = tl.load(input_block_ptr, boundary_check=(1,))
     condition = tl.arange(0, block_size) < size
     input = tl.where(condition, input, float("-inf"))
-    output = tl.argmax(input, 1)
+    output = tl.argmax(input, axis=1)
     tl.store(output_block_ptr, output.to(tl.int64))
 
 
@@ -47,7 +52,7 @@ def argmax(input, dim):
     [
         testing.Benchmark(
             x_names=["size"],
-            x_vals=[256 * i for i in range(1, 11, 1)],
+            x_vals=[256 * i for i in range(1, 16, 1)],
             x_log=False,
             line_arg="backend",
             line_vals=["triton", "torch"],
@@ -59,7 +64,7 @@ def argmax(input, dim):
     ]
 )
 def benchmark(num_batches, size, backend):
-    input = torch.rand(num_batches, size, device="cuda")
+    input = torch.rand(num_batches, size, device='cuda')
 
     if backend == "triton":
         return testing.do_bench(lambda: argmax(input, 1))
