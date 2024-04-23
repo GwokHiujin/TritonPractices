@@ -69,14 +69,14 @@ def _clamp(x: torch.Tensor, min=float('-inf'), max=float('inf')):
     [
         testing.Benchmark(
             x_names=["N"],
-            x_vals=[128 * i for i in range(1, 16, 1)],
+            x_vals=[16 * i for i in range(1, 16, 1)],
             x_log=False,
             line_arg="backend",
             line_vals=["triton", "torch"],
             line_names=["Triton", "Torch"],
             ylabel="milliseconds",
             plot_name="06-clamp-performance",
-            args={"M": 8},
+            args={"M": 64},
         ),
     ]
 )
