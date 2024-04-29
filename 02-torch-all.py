@@ -9,6 +9,7 @@ threshlod = 0.8
 
 # Tests if any element in input evaluate to True.
 # torch-all can support multi-dimensions tensor
+# 还是得指定 shape，每个 shape 不一样的算子，一个算子管不了所有 shape
 @triton.jit
 def all_kernel(input_ptr, 
                # Matrix dimensions

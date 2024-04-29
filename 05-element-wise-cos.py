@@ -42,7 +42,7 @@ def _cos(x: torch.Tensor):
     [
         testing.Benchmark(
             x_names=["N"],
-            x_vals=[8 * i for i in range(1, 16, 1)],
+            x_vals=[32 * i for i in range(1, 16, 1)],
             x_log=False,
             line_arg="backend",
             line_vals=["triton", "torch"],
