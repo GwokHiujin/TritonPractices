@@ -61,8 +61,8 @@ def any_kernel_tensor_1(
     offset = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     inp_ptrs = inp + offset
     mask = offset < n_elements
-    inp_val = tl.load(inp_ptrs, mask=mask, other=0.0)
-    any_val = tl.min(inp_val == 0, axis=0)
+    inp_val = tl.load(inp_ptrs, mask=mask, other=0.0).to(tl.float32)
+    any_val = tl.min(inp_val == 0., axis=0)
     mid_ptr = mid + pid
     tl.store(mid_ptr, any_val)
 
@@ -76,14 +76,15 @@ def any_kernel_tensor_2(mid, out, MID_SIZE, BLOCK_MID: tl.constexpr):
     tl.store(out, any_val)
 
 
-def any(inp, dim=1, keepdim=False, *, dtype=None):
+def any(inp, dim=None, keepdim=False, *, dtype=None):
     if __debug__:
         print("GEMS any")
+    assert (dim == None) or (dim >= -inp.ndim and dim < inp.ndim), "Invalid dim"
 
     if dtype is None:
         dtype = inp.dtype
 
-    if (inp.ndim == 1):
+    if (dim == None):
         n_elements = inp.numel()
         block_size = triton.next_power_of_2(math.ceil(math.sqrt(n_elements)))
         mid_size = triton.cdiv(n_elements, block_size)
@@ -95,9 +96,8 @@ def any(inp, dim=1, keepdim=False, *, dtype=None):
         any_kernel_tensor_1[(mid_size, 1, 1)](inp, mid, n_elements, block_size)
         any_kernel_tensor_2[(1, 1, 1)](mid, out, mid_size, block_mid)
 
-        return (out == 0.)
+        return (out != 0.)
 
-    assert dim >= -inp.ndim and dim < inp.ndim, "Invalid dim"
     shape = list(inp.shape)
     dim = dim % len(shape)
     M = 1
@@ -124,15 +124,15 @@ def any(inp, dim=1, keepdim=False, *, dtype=None):
 
 
 # TEST CODE
-x = torch.rand((2, 3, 4, 5), device='cuda') < 0.5
+x = torch.rand((2), device='cuda') < 0.5
 # x = torch.rand((2, 3, 4, 5), device='cuda')
 dim = 2
-keepdim = True
+keepdim = False
 print(f'x: {x}')
 
-out_torch = torch.any(x, dim=dim, keepdim=keepdim)
+out_torch = torch.any(x)
 print(f'torch out: {out_torch}')
-out_triton = any(x, dim=dim, keepdim=keepdim)
+out_triton = any(x)
 print(f'triton out: {out_triton}')
 
 print(f"The output of torch and triton is {'✅SAME' if torch.allclose(out_torch, out_triton) else '🚨DIFF'}")
