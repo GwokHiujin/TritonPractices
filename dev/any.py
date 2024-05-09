@@ -83,7 +83,7 @@ def any(inp, dim=1, keepdim=False, *, dtype=None):
     if dtype is None:
         dtype = inp.dtype
 
-    if (inp.ndim == 0):
+    if (inp.ndim == 1):
         n_elements = inp.numel()
         block_size = triton.next_power_of_2(math.ceil(math.sqrt(n_elements)))
         mid_size = triton.cdiv(n_elements, block_size)

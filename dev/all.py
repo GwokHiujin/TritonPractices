@@ -83,7 +83,7 @@ def all(inp, dim=1, keepdim=False, *, dtype=None):
     if dtype is None:
         dtype = inp.dtype
 
-    if (inp.ndim == 0):
+    if (inp.ndim == 1):
         n_elements = inp.numel()
         block_size = triton.next_power_of_2(math.ceil(math.sqrt(n_elements)))
         mid_size = triton.cdiv(n_elements, block_size)
@@ -124,7 +124,7 @@ def all(inp, dim=1, keepdim=False, *, dtype=None):
 
 
 # TEST CODE
-x = torch.rand((2, 3, 4, 5), device='cuda') < 0.5
+x = torch.rand((10), device='cuda') < 0.5
 # x = torch.rand((2, 3, 4, 5), device='cuda')
 dim = 2
 keepdim = False
