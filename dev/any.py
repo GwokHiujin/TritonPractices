@@ -76,10 +76,9 @@ def any_kernel_tensor_2(mid, out, MID_SIZE, BLOCK_MID: tl.constexpr):
     tl.store(out, any_val)
 
 
-def any(inp, dim=0, keepdim=False, *, dtype=None):
+def any(inp, dim=1, keepdim=False, *, dtype=None):
     if __debug__:
         print("GEMS any")
-    assert dim >= -inp.ndim and dim < inp.ndim, "Invalid dim"
 
     if dtype is None:
         dtype = inp.dtype
@@ -98,6 +97,7 @@ def any(inp, dim=0, keepdim=False, *, dtype=None):
 
         return (out == 0.)
 
+    assert dim >= -inp.ndim and dim < inp.ndim, "Invalid dim"
     shape = list(inp.shape)
     dim = dim % len(shape)
     M = 1

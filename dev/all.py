@@ -76,10 +76,9 @@ def all_kernel_tensor_2(mid, out, MID_SIZE, BLOCK_MID: tl.constexpr):
     tl.store(out, all_val)
 
 
-def all(inp, dim=0, keepdim=False, *, dtype=None):
+def all(inp, dim=1, keepdim=False, *, dtype=None):
     if __debug__:
         print("GEMS all")
-    assert dim >= -inp.ndim and dim < inp.ndim, "Invalid dim"
 
     if dtype is None:
         dtype = inp.dtype
@@ -98,6 +97,7 @@ def all(inp, dim=0, keepdim=False, *, dtype=None):
 
         return (out == 0.)
 
+    assert dim >= -inp.ndim and dim < inp.ndim, "Invalid dim"
     shape = list(inp.shape)
     dim = dim % len(shape)
     M = 1
@@ -130,9 +130,9 @@ dim = 2
 keepdim = False
 print(f'x: {x}')
 
-out_torch = torch.all(x, dim=dim, keepdim=keepdim)
+out_torch = torch.all(x)
 print(f'torch out: {out_torch}')
-out_triton = all(x, dim=dim, keepdim=keepdim)
+out_triton = all(x)
 print(f'triton out: {out_triton}')
 
 print(f"The output of torch and triton is {'✅SAME' if torch.allclose(out_torch, out_triton) else '🚨DIFF'}")
